@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>buscaCEP</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f2f4f7;
+      margin: 0;
+      padding: 40px 16px;
+      color: #222;
+    }
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 28px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.1);
+    }
+    h1 { margin-top: 0; font-size: 1.5rem; text-align: center; }
+    label { display: block; margin-bottom: 6px; font-weight: bold; }
+    input {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+      margin-bottom: 14px;
+    }
+    button {
+      width: 100%;
+      padding: 11px;
+      font-size: 1rem;
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #155db8; }
+    button:disabled { background: #8aa9d6; cursor: not-allowed; }
+    #resultado { margin-top: 20px; }
+    .endereco {
+      background: #eef5ff;
+      border-left: 4px solid #1a73e8;
+      padding: 14px;
+      border-radius: 6px;
+      line-height: 1.7;
+    }
+    .erro {
+      background: #fdecea;
+      border-left: 4px solid #d93025;
+      color: #a50e0e;
+      padding: 14px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>buscaCEP</h1>
+
+    <label for="cep">Digite o CEP</label>
+    <input type="text" id="cep" placeholder="Ex.: 79002-000" maxlength="9" autocomplete="off">
+    <button id="btnBuscar">Buscar Endereço</button>
+
+    <div id="resultado"></div>
+  </div>
+
+  <script>
+    const inputCep = document.getElementById('cep');
+    const btnBuscar = document.getElementById('btnBuscar');
+    const resultado = document.getElementById('resultado');
+
+    function mostrarErro(mensagem) {
+      resultado.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'erro';
+      div.textContent = mensagem;
+      resultado.appendChild(div);
+    }
+
+    function mostrarEndereco(dados) {
+      resultado.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'endereco';
+
+      const campos = [
+        ['Logradouro', dados.logradouro || '(não informado)'],
+        ['Bairro', dados.bairro || '(não informado)'],
+        ['Cidade', dados.localidade],
+        ['Estado', dados.uf]
+      ];
+
+      campos.forEach(([rotulo, valor]) => {
+        const p = document.createElement('div');
+        const strong = document.createElement('strong');
+        strong.textContent = rotulo + ': ';
+        p.appendChild(strong);
+        p.appendChild(document.createTextNode(valor));
+        div.appendChild(p);
+      });
+
+      resultado.appendChild(div);
+    }
+
+    async function buscarEndereco() {
+      const cep = inputCep.value.replace(/\D/g, '');
+
+      if (!/^\d{8}$/.test(cep)) {
+        mostrarErro('CEP inválido. Digite exatamente 8 números.');
+        return;
+      }
+
+      btnBuscar.disabled = true;
+      resultado.textContent = 'Buscando...';
+
+      try {
+        const resposta = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+        if (!resposta.ok) {
+          throw new Error('Falha na requisição');
+        }
+        const dados = await resposta.json();
+
+        if (dados.erro) {
+          mostrarErro('CEP não encontrado.');
+        } else {
+          mostrarEndereco(dados);
+        }
+      } catch (erro) {
+        mostrarErro('Ocorreu um erro ao consultar o CEP. Tente novamente.');
+      } finally {
+        btnBuscar.disabled = false;
+      }
+    }
+
+    btnBuscar.addEventListener('click', buscarEndereco);
+    inputCep.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') buscarEndereco();
+    });
+  </script>
+</body>
+</html>
