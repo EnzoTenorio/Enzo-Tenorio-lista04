@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>listaCidadesAPartirDeEstados</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f2f4f7;
+      margin: 0;
+      padding: 40px 16px;
+      color: #222;
+    }
+    .container {
+      max-width: 480px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 28px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.1);
+    }
+    h1 { margin-top: 0; font-size: 1.5rem; text-align: center; }
+    label { display: block; margin-bottom: 6px; font-weight: bold; }
+    select {
+      width: 100%;
+      padding: 10px;
+      font-size: 1rem;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      background: #fff;
+    }
+    select:disabled { background: #eee; cursor: not-allowed; }
+    #mensagem {
+      margin-top: 8px;
+      font-weight: bold;
+    }
+    .selecionado {
+      background: #eef5ff;
+      border-left: 4px solid #1a73e8;
+      padding: 14px;
+      border-radius: 6px;
+    }
+    .erro {
+      background: #fdecea;
+      border-left: 4px solid #d93025;
+      color: #a50e0e;
+      padding: 14px;
+      border-radius: 6px;
+      font-weight: normal;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Estado e Cidade</h1>
+
+    <label for="estado">Estado</label>
+    <select id="estado">
+      <option value="">Carregando estados...</option>
+    </select>
+
+    <label for="cidade">Cidade</label>
+    <select id="cidade" disabled>
+      <option value="">Selecione um estado primeiro</option>
+    </select>
+
+    <div id="mensagem"></div>
+  </div>
+
+  <script>
+    const selectEstado = document.getElementById('estado');
+    const selectCidade = document.getElementById('cidade');
+    const mensagem = document.getElementById('mensagem');
+
+    const URL_ESTADOS = 'https://servicodados.ibge.gov.br/api/v1/localidades/estados';
+
+    function limparMensagem() {
+      mensagem.innerHTML = '';
+    }
+
+    function mostrarErro(texto) {
+      mensagem.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'erro';
+      div.textContent = texto;
+      mensagem.appendChild(div);
+    }
+
+    function criarOption(valor, texto) {
+      const opt = document.createElement('option');
+      opt.value = valor;
+      opt.textContent = texto;
+      return opt;
+    }
+
+    async function carregarEstados() {
+      try {
+        const resposta = await fetch(URL_ESTADOS);
+        if (!resposta.ok) throw new Error('Falha ao carregar estados');
+        const estados = await resposta.json();
+
+        estados.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+        selectEstado.innerHTML = '';
+        selectEstado.appendChild(criarOption('', 'Selecione um estado'));
+        estados.forEach((estado) => {
+          const opt = criarOption(estado.sigla, estado.nome);
+          selectEstado.appendChild(opt);
+        });
+      } catch (erro) {
+        selectEstado.innerHTML = '';
+        selectEstado.appendChild(criarOption('', 'Erro ao carregar'));
+        mostrarErro('Não foi possível carregar a lista de estados. Tente novamente mais tarde.');
+      }
+    }
+
+    async function carregarCidades(uf) {
+      selectCidade.disabled = true;
+      selectCidade.innerHTML = '';
+      selectCidade.appendChild(criarOption('', 'Carregando cidades...'));
+
+      try {
+        const resposta = await fetch(`${URL_ESTADOS}/${uf}/municipios`);
+        if (!resposta.ok) throw new Error('Falha ao carregar cidades');
+        const cidades = await resposta.json();
+
+        cidades.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+        selectCidade.innerHTML = '';
+        selectCidade.appendChild(criarOption('', 'Selecione uma cidade'));
+        cidades.forEach((cidade) => {
+          selectCidade.appendChild(criarOption(cidade.nome, cidade.nome));
+        });
+        selectCidade.disabled = false;
+      } catch (erro) {
+        selectCidade.innerHTML = '';
+        selectCidade.appendChild(criarOption('', 'Erro ao carregar'));
+        mostrarErro('Não foi possível carregar as cidades deste estado. Tente novamente.');
+      }
+    }
+
+    function mostrarSelecao() {
+      const cidade = selectCidade.value;
+      const estadoOpt = selectEstado.options[selectEstado.selectedIndex];
+
+      if (!cidade || !estadoOpt || !estadoOpt.value) {
+        limparMensagem();
+        return;
+      }
+
+      mensagem.innerHTML = '';
+      const div = document.createElement('div');
+      div.className = 'selecionado';
+      div.textContent = `Você selecionou: ${cidade} - ${estadoOpt.textContent}`;
+      mensagem.appendChild(div);
+    }
+
+    selectEstado.addEventListener('change', () => {
+      limparMensagem();
+      const uf = selectEstado.value;
+
+      if (!uf) {
+        selectCidade.innerHTML = '';
+        selectCidade.appendChild(criarOption('', 'Selecione um estado primeiro'));
+        selectCidade.disabled = true;
+        return;
+      }
+      carregarCidades(uf);
+    });
+
+    selectCidade.addEventListener('change', mostrarSelecao);
+
+    carregarEstados();
+  </script>
+</body>
+</html>
